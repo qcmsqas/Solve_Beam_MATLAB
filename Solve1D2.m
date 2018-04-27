@@ -1,0 +1,59 @@
+%设定，国际单位制
+Nlen=3;
+Zmax=0.25;
+Zmin=0.55;
+Xmin=-600e-6;
+Xmax=600e-6;
+N=400;
+Xm=150e-6;
+lambda=0.8*632.8e-9;
+lambdaM=0.0693;
+d=0.3;
+dx=(Xmax-Xmin)/N;
+dz=(Zmax-Zmin)/N;
+z=Zmin:dz:Zmax;
+x=Xmin:dx:Xmax;
+[X,Z]=meshgrid(x,z);
+k=2*pi/lambda;
+km=2*pi/lambdaM;
+%dkx=2*k/N;
+%kx=-k+dkx*0.5:dkx:k;
+kx=getKx(Xm,km,k,N);
+za=d+lambdaM*(0:0.5:Nlen);
+kxf=(kx(1:end-1)+kx(2:end))/2;
+Fii=zeros(size(za,2)-1,size(kx,2));
+PPi=Fii;
+dkx=kx(2)-kx(1);
+Fxi=zeros(size(kx));
+for i=1:size(za,2)-1
+    Zx=getZ(kx,za(i),za(i+1),Xm,d,km,k);
+    Zxf=getZ(kxf,za(i),za(i+1),Xm,d,km,k);
+    PP=(1-isnan(Zx))./(k*Xm*km*km*sin(km*(Zx-d)));
+    PP(isnan(PP))=0;
+    PPi(i,:)=(abs(PP)).^(1);
+    Fi=-Xm*sin(km*(Zxf-d))+Xm*km*Zxf.*cos(km*(Zxf-d));
+    %FiP=-Xm*sin(km*(Zx-d))+Xm*km*Zx.*cos(km*(Zx-d));
+    Fi(isnan(Fi))=0;
+    %FiP(isnan(FiP))=0;
+    for j=1:size(kxf,2)
+        Fxi(j+1)=Fxi(j)+Fi(j)*dkx;
+    end
+    Fii(i,:)=Fxi;
+end
+%Fii(2,:)=Fii(2,:)-Fii(2,1)+Fii(1,1);
+PPi(isnan(PPi))=0;
+Fii(isnan(Fii))=0;
+Pi=PPi.^0.5;
+A=PPi.*exp(1i*Fii);
+AM=([1,-1i,-1,1i,1,-1i]*A);
+
+AMM=AM;%.*(abs(kxf)<max(abs(kx)));
+E=getField(X,Z,AMM,kx,k);
+alpha=2;
+E=E.*exp(-alpha*Z);
+surf(Z,X,abs(E).^2,'edgecolor','none');
+view(2);
+hold on;
+LinAlpha=0.5;
+ColorValue=[0,0,1];
+%plot3(z,Xm*sin((z-d)*km),ones(size(z))*max(abs(E(:))),'--','linewidth',3,'Color',1.0-LinAlpha*(1.0-ColorValue),'EraseMode','xor')

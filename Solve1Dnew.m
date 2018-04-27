@@ -1,0 +1,62 @@
+%设定，国际单位制
+Nlen=3;
+Zmax=0.3;
+Zmin=0.2;
+Xmin=-600e-6;
+Xmax=600e-6;
+N=400;
+Xm=150e-6;
+lambda=632.8e-9;
+lambdaM=0.07;
+d=200e-3;
+dx=(Xmax-Xmin)/N;
+dz=(Zmax-Zmin)/N;
+z=Zmin:dz:Zmax;
+x=Xmin:dx:Xmax;
+[X,Z]=meshgrid(x,z);
+k=2*pi/lambda;
+km=2*pi/lambdaM;
+%dkx=2*k/N;
+%kx=-k+dkx*0.5:dkx:k;
+kx=getKx(Xm,km,k,N*2);
+za=d+lambdaM*(0:0.5:Nlen);
+kxf=(kx(1:end-1)+kx(2:end))/2;
+Fii=zeros(size(za,2)-1,size(kx,2));
+PPi=Fii;
+FiPi=PPi;
+FiP=0*kx;
+FiPPP=FiP;
+dkx=kx(2)-kx(1);
+i=1;
+for i=1:size(za,2)-1
+    Zx=getZ(kx,za(i),za(i+1),Xm,d,km,k);
+    Zxf=getZ(kxf,za(i),za(i+1),Xm,d,km,k);
+    FiPP=Zxf/k;
+    FiPP(isnan(FiPP))=0;
+    FiP=zeros(size(FiP));
+    for j=1:size(kxf,2)
+        FiP(j+1)=FiP(j)+FiPP(j)*dkx;
+    end
+    FiP=FiP-FiP(N+1);
+    FiPf=(FiP(1:end-1)+FiP(2:end))*0.5;
+    FiPf(isnan(Zxf))=0;
+    for j=1:size(kxf,2)
+        Fii(i,j+1)=Fii(i,j)+FiPf(j)*dkx;
+    end
+    Fii(i,isnan(Zx))=0;
+    FiPPP(2:end-1)=(Zxf(2:end)-Zxf(1:end-1))/k/dkx;
+    
+    FiPPP(1)=(Zxf(1)-Zx(1))*2/dkx;
+    FiPPP(end)=(Zx(end)-Zxf(end))*2/dkx;
+    P=FiPPP/2; 
+    P=abs(P).^(-1/2);%.*sign(P);
+    PPi(i,:)=P;
+end
+plot(Fii(1,:));
+figure();
+PPi(isnan(PPi))=0;
+Fii(isnan(Fii))=0;
+A=PPi.*exp(1i*Fii);
+E=getField(X,Z,A(1,:),kx,k);
+mesh(Z,X,abs(E).^2);
+view(2);
